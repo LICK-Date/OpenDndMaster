@@ -1,0 +1,37 @@
+{
+  "name": "Traveler",
+  "background": "A wandering adventurer new to town.",
+  "attributes": {
+    "strength": 16,
+    "dexterity": 15,
+    "intelligence": 14,
+    "charisma": 15,
+    "constitution": 14,
+    "talent": 13
+  },
+  "hidden_reputation": {
+    "notoriety": 1,
+    "goodwill": 0,
+    "heroic": 0
+  },
+  "equipment": [
+    "travel cloak",
+    "coin pouch"
+  ],
+  "history": [
+    "Turn action: 我尝试说服旅店老板给我一个安静的房间 | outcome: success",
+    "Turn action: 我尝试说服 Mara 给我一个安静的房间 | action_type: social | outcome: failure",
+    "Turn action: 我尝试说服 Mara 给我一个安静的房间 | action_type: social | outcome: failure",
+    "Turn action: 我威胁 Mara 立刻把楼上的消息告诉我 | action_type: threaten | outcome: success"
+  ],
+  "relationships": [],
+  "status": {
+    "location": "Riverside Inn",
+    "injury": "none",
+    "wanted": false
+  },
+  "hidden_reputation_meta": {
+    "applied_goodwill_tiers": 0,
+    "applied_notoriety_tiers": 0
+  }
+}

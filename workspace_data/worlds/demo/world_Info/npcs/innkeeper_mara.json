@@ -13,7 +13,7 @@
   "relationship_to_player": "对玩家保持明显戒备。",
   "current_status": "alive",
   "current_city": "Riverside",
-  "favorability": -4,
+  "favorability": -5,
   "social_resistance": 10,
   "attributes": {
     "constitution": 10,

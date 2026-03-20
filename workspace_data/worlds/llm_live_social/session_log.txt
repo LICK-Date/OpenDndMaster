@@ -1,0 +1,1 @@
+Turn action: 我尝试说服 Mara 给我一个安静的房间 | action_type: social | outcome: success

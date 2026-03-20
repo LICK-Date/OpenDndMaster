@@ -1,0 +1,32 @@
+{
+  "name": "Traveler",
+  "background": "A wandering adventurer new to town.",
+  "attributes": {
+    "strength": 16,
+    "dexterity": 15,
+    "intelligence": 14,
+    "charisma": 15,
+    "constitution": 14,
+    "talent": 13
+  },
+  "hidden_reputation": {
+    "notoriety": 0,
+    "goodwill": 0,
+    "heroic": 0
+  },
+  "hidden_reputation_meta": {
+    "applied_goodwill_tiers": 0,
+    "applied_notoriety_tiers": 0
+  },
+  "equipment": [
+    "travel cloak",
+    "coin pouch"
+  ],
+  "history": [],
+  "relationships": [],
+  "status": {
+    "location": "Riverside Inn",
+    "injury": "none",
+    "wanted": false
+  }
+}

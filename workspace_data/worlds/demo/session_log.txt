@@ -2,3 +2,4 @@ Turn action: 我尝试说服旅店老板给我一个安静的房间 | outcome: s
 Turn action: 我尝试说服 Mara 给我一个安静的房间 | action_type: social | outcome: failure
 Turn action: 我尝试说服 Mara 给我一个安静的房间 | action_type: social | outcome: failure
 Turn action: 我威胁 Mara 立刻把楼上的消息告诉我 | action_type: threaten | outcome: success
+Turn action: 我尝试说服 Mara 给我一个安静的房间 | action_type: social | outcome: failure

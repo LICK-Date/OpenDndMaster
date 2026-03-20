@@ -1,0 +1,23 @@
+{
+  "id": "innkeeper_mara",
+  "name": "Mara",
+  "age": 38,
+  "gender": "female",
+  "profession": "innkeeper",
+  "appearance": "Keeps a clean apron and watches the room carefully.",
+  "personality": "Measured, practical, and hard to fool.",
+  "background": "Runs the Riverside Inn and hears most town rumors.",
+  "alignment": "neutral",
+  "goal": "Keep the inn safe and profitable.",
+  "secret": "Passes useful information to the Town Watch.",
+  "relationship_to_player": "对玩家保持明显戒备。",
+  "current_status": "alive",
+  "current_city": "Riverside",
+  "favorability": -2,
+  "social_resistance": 12,
+  "attributes": {
+    "constitution": 11,
+    "willpower": 12,
+    "strength": 10
+  }
+}

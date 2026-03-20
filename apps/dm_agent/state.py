@@ -14,6 +14,7 @@ ActionType = Literal[
 ]
 
 RollResult = Literal["success", "partial", "failure", "not_required"]
+NarrativeSource = Literal["llm", "template"]
 
 
 class RollOutcome(TypedDict, total=False):
@@ -47,4 +48,6 @@ class GMState(TypedDict, total=False):
     roll: RollOutcome
     consequences: list[str]
     narrative_sections: list[str]
+    narrative_source: NarrativeSource
+    narrative_error: str
     final_response: str

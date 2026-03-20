@@ -1,0 +1,1 @@
+Turn action: 我走进酒馆，看向老板娘 Mara | action_type: narrative | outcome: not_required

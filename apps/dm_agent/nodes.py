@@ -1,14 +1,17 @@
 ﻿from __future__ import annotations
 
+import json
 from typing import Any
 
 from .dice import resolve_threshold_roll, roll_d20
+from .llm_client import LLMClientError, OpenAICompatibleClient
 from .memory_store import (
     append_session_log,
     apply_reputation_change,
     load_world_memory,
     save_world_memory,
 )
+from .prompts import build_narrative_messages
 from .rules import (
     calculate_threshold,
     classify_action,
@@ -17,6 +20,15 @@ from .rules import (
     should_roll,
 )
 from .state import GMState, RollOutcome
+
+
+JSON_SECTION_KEYS = [
+    ("scene", "场景描述"),
+    ("npc_reaction", "NPC行为与反应"),
+    ("resolution", "判定过程与结果"),
+    ("consequence", "后果"),
+    ("new_situation", "新局势与引导"),
+]
 
 
 def load_memory_node(state: GMState) -> dict[str, Any]:
@@ -76,22 +88,28 @@ def resolve_action_node(state: GMState) -> dict[str, Any]:
             "attribute": "",
             "threshold": 0,
             "result": "not_required",
-            "summary": "该行动不同时满足“不确定、失败会改变局势、值得单独表现”三项条件，直接进行叙事结算。",
+            "summary": "眼前的局势还算平稳，你的举动顺着情势自然推进，没有被迫卷入一场非成即败的较量。",
         }
         return {"roll": roll}
 
     die = roll_d20()
     result = resolve_threshold_roll(die, state["roll_threshold"])
-    target_clause = ""
-    if state.get("target_npc_name"):
-        target_clause = f" 目标 NPC 为 {state['target_npc_name']}。"
-    summary = (
-        f"本回合触发 d20 判定。掷骰结果为 {die}，"
-        f"当前行动使用属性 {state['roll_attribute']}，"
-        f"最终阈值为 {state['roll_threshold']}，"
-        f"结果判定为 {result}。"
-        f"{target_clause}"
-    )
+    target_npc_name = state.get("target_npc_name", "")
+    if result == "success":
+        if target_npc_name:
+            summary = f"关键时刻，你拿捏住了分寸，{target_npc_name}面前那点阻力终于松开，事情朝你想要的方向动了。"
+        else:
+            summary = "关键时刻，你拿捏住了分寸，眼前的阻力终于松开，事情朝你想要的方向动了。"
+    elif result == "partial":
+        if target_npc_name:
+            summary = f"你勉强撬动了{target_npc_name}面前的僵局，事情没有彻底失手，却也留下了明显的代价。"
+        else:
+            summary = "你勉强撬动了眼前的僵局，事情没有彻底失手，却也留下了明显的代价。"
+    else:
+        if target_npc_name:
+            summary = f"你的分寸终究还是差了一线，{target_npc_name}没有被你带着走，局势反而朝更棘手的方向偏去。"
+        else:
+            summary = "你的分寸终究还是差了一线，局势没有顺着你的心意发展，反而朝更棘手的方向偏去。"
     roll: RollOutcome = {
         "die": die,
         "threshold": state["roll_threshold"],
@@ -135,9 +153,14 @@ def _apply_npc_impact(state: GMState, consequences: list[str]) -> None:
         target_npc["favorability"] = int(target_npc.get("favorability", 0)) + favorability_delta
         if target_npc["favorability"] >= 2:
             target_npc["relationship_to_player"] = "对玩家明显更信任。"
+            consequences.append(f"{npc_name}看你的眼神柔和了些，语气里也多出了一点愿意搭话的余地。")
         elif target_npc["favorability"] <= -2:
             target_npc["relationship_to_player"] = "对玩家保持明显戒备。"
-        consequences.append(f"{npc_name} 对玩家的态度发生了变化，并已写回 NPC 记忆。")
+            consequences.append(f"{npc_name}的神情明显冷了下来，连呼吸间都透着掩不住的戒备。")
+        elif favorability_delta > 0:
+            consequences.append(f"{npc_name}对你的态度松动了一点，至少不再把你当成无关紧要的陌生人。")
+        else:
+            consequences.append(f"{npc_name}对你的警惕悄悄抬高了一线，话里话外都变得更谨慎了。")
 
 
 def apply_consequences_node(state: GMState) -> dict[str, Any]:
@@ -149,13 +172,13 @@ def apply_consequences_node(state: GMState) -> dict[str, Any]:
     roll = state["roll"]
 
     if roll["result"] == "success":
-        consequences.append("行动成功达成核心目的，局势朝玩家有利的方向偏移。")
+        consequences.append("局势明显朝你希望的方向偏了一步，眼前的门缝被你推开了。")
     elif roll["result"] == "partial":
-        consequences.append("行动勉强成功，但产生了额外代价、压力或隐患。")
+        consequences.append("事情虽成，却带着一点不轻不重的代价，像鞋底粘住的泥，暂时甩不干净。")
     elif roll["result"] == "failure":
-        consequences.append("行动失败，世界状态已经出现明确而可持续的后果。")
+        consequences.append("事情没有按你的设想发展，空气里随即多了几分不妙的意味。")
     else:
-        consequences.append("本回合按纯叙事方式结算，没有单独掷骰。")
+        consequences.append("这一回合没有激起真正的风浪，事情只是顺着你的举动往前滑去。")
 
     notoriety_delta, goodwill_delta, heroic_delta = infer_reputation_deltas(
         player_input=player_input,
@@ -169,9 +192,7 @@ def apply_consequences_node(state: GMState) -> dict[str, Any]:
             goodwill_delta=goodwill_delta,
             heroic_delta=heroic_delta,
         )
-        consequences.append(
-            "该行动触发了隐藏名声联动，系统已更新恶名、善名与侠名。"
-        )
+        consequences.append("你这一番举动会悄悄改变旁人日后看待你的方式，只是眼下未必人人都说破。")
 
     _apply_npc_impact(state, consequences)
 
@@ -190,7 +211,7 @@ def apply_consequences_node(state: GMState) -> dict[str, Any]:
     return {"consequences": consequences}
 
 
-def render_narrative_node(state: GMState) -> dict[str, Any]:
+def _render_template_narrative(state: GMState) -> tuple[list[str], str]:
     memory = state["memory"]
     world = memory["world"]
     player_profile = memory["player_profile"]
@@ -200,25 +221,85 @@ def render_narrative_node(state: GMState) -> dict[str, Any]:
     location = player_profile["status"]["location"]
 
     scene = (
-        f"场景描述：{world['current_city']} 的 {location} 里，空气里混着木柴、酒气与低声交谈。"
+        f"{world['current_city']} 的 {location} 里，空气里混着木柴、酒气与低声交谈。"
         f" 你刚刚采取的行动是“{state['player_input']}”。"
     )
     npc_reaction = (
-        f"NPC行为与反应：{npc_name} 先观察你的语气、姿态与时机，"
-        f"随后根据眼前利益、风险和既有态度做出回应。"
-        f" 系统将这一步归类为 {state['action_type']} 行动。"
+        f"{npc_name}抬眼打量了你一下，像是在衡量你的来意和分量。"
+        f" 她没有急着表态，只把注意力短暂地压在你身上，等着看你下一步会怎么走。"
     )
-    resolution = f"判定过程与结果：{state['roll']['summary']}"
-    consequence = "后果：" + " ".join(state["consequences"])
+    resolution = state["roll"]["summary"]
+    consequence = " ".join(state["consequences"])
     new_situation = (
-        "新局势与引导：局面已经出现新的缝隙与压力。"
+        "局面已经出现新的缝隙与压力。"
         " 周围人的视线、环境细节以及说话停顿中暴露出的犹豫，"
         " 都在暗示后续可以继续追击、暂时收手，或转向另一条更隐蔽的路径。"
     )
-
     sections = [scene, npc_reaction, resolution, consequence, new_situation]
-    final_response = "\n\n".join(sections)
-    return {
-        "narrative_sections": sections,
-        "final_response": final_response,
-    }
+    return sections, "\n\n".join(sections)
+
+
+def _extract_json_object(raw_text: str) -> dict[str, Any]:
+    text = raw_text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if len(lines) >= 3:
+            text = "\n".join(lines[1:-1]).strip()
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        raise LLMClientError("LLM did not return a JSON object")
+    text = text[start:end + 1]
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise LLMClientError("LLM returned invalid JSON") from exc
+    if not isinstance(payload, dict):
+        raise LLMClientError("LLM JSON root must be an object")
+    return payload
+
+
+def _parse_json_narrative(raw_text: str) -> tuple[list[str], str]:
+    payload = _extract_json_object(raw_text)
+    sections: list[str] = []
+    rendered: list[str] = []
+    for key, _title in JSON_SECTION_KEYS:
+        value = payload.get(key)
+        if not isinstance(value, str) or not value.strip():
+            raise LLMClientError(f"LLM JSON missing non-empty field: {key}")
+        body = value.strip()
+        sections.append(body)
+        rendered.append(body)
+    extra_keys = set(payload.keys()) - {key for key, _ in JSON_SECTION_KEYS}
+    if extra_keys:
+        raise LLMClientError(f"LLM JSON returned unexpected fields: {sorted(extra_keys)}")
+    return sections, "\n\n".join(rendered)
+
+
+def render_narrative_node(state: GMState) -> dict[str, Any]:
+    fallback_sections, fallback_response = _render_template_narrative(state)
+    client = OpenAICompatibleClient.from_env()
+    if client is None:
+        return {
+            "narrative_sections": fallback_sections,
+            "narrative_source": "template",
+            "final_response": fallback_response,
+        }
+
+    try:
+        messages = build_narrative_messages(state)
+        llm_response = client.generate(messages)
+        parsed_sections, parsed_response = _parse_json_narrative(llm_response)
+        return {
+            "narrative_sections": parsed_sections,
+            "narrative_source": "llm",
+            "narrative_error": "",
+            "final_response": parsed_response,
+        }
+    except LLMClientError as exc:
+        return {
+            "narrative_sections": fallback_sections,
+            "narrative_source": "template",
+            "narrative_error": str(exc),
+            "final_response": fallback_response,
+        }

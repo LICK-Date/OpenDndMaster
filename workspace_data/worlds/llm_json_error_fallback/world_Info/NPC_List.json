@@ -1,0 +1,10 @@
+[
+  {
+    "npc_id": "innkeeper_mara",
+    "name": "Mara",
+    "file_path": "world_Info/npcs/innkeeper_mara.json",
+    "current_status": "alive",
+    "city": "Riverside",
+    "relationship_summary": "Polite but cautious toward newcomers."
+  }
+]

@@ -248,15 +248,14 @@ def save_world_memory(
     snapshot: MemorySnapshot,
 ) -> None:
     paths = get_world_paths(workspace_root, world_id)
+    player_markdown = _render_player_markdown(snapshot["player_profile"])
     _write_json(paths["world_json"], snapshot["world"])
     _write_json(paths["player_profile"], snapshot["player_profile"])
     _write_json(paths["npc_list"], snapshot["npc_index"])
     for npc_id, payload in snapshot["npc_records"].items():
         _write_json(paths["npc_dir"] / f"{npc_id}.json", payload)
-    paths["player_md"].write_text(
-        _render_player_markdown(snapshot["player_profile"]),
-        encoding="utf-8",
-    )
+    paths["player_md"].write_text(player_markdown, encoding="utf-8")
+    snapshot["player_markdown"] = player_markdown
 
 
 def append_session_log(workspace_root: str, world_id: str, line: str) -> None:

@@ -1,0 +1,10 @@
+{
+  "world_name": "Riverside Demo",
+  "tone": "grounded fantasy",
+  "current_city": "Riverside",
+  "factions": [
+    "Town Watch",
+    "River Traders"
+  ],
+  "recent_events": []
+}

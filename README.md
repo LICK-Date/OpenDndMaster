@@ -22,7 +22,7 @@
 - 支持通过环境变量或 Web UI 保存并切换 LLM 配置
 - 图执行优先使用 LangGraph；若当前环境未安装对应模块，会自动回退到仓库内置的轻量 `runtime_graph`
 
-换句话说，这个仓库现在是“LangGraph 源码 + DungeonMaster 应用原型”并存的开发仓库，而不是单纯的上游框架镜像。
+这个仓库现在是“LangGraph 源码 + DungeonMaster 应用原型”并存的开发仓库，而不是单纯的上游框架镜像。
 
 ## 目录说明
 

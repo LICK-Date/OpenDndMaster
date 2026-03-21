@@ -4,6 +4,7 @@ import json
 import os
 import socket
 from dataclasses import dataclass
+from typing import Any
 from urllib import error, request
 
 
@@ -27,12 +28,28 @@ class OpenAICompatibleClient:
 
     @classmethod
     def from_env(cls) -> "OpenAICompatibleClient | None":
-        model = os.getenv("DM_LLM_MODEL") or os.getenv("OPENAI_MODEL") or ""
-        base_url = os.getenv("DM_LLM_BASE_URL") or os.getenv("OPENAI_BASE_URL") or ""
-        api_key = os.getenv("DM_LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
-        timeout_value = os.getenv("DM_LLM_TIMEOUT") or "30"
-        temperature_value = os.getenv("DM_LLM_TEMPERATURE") or "0.7"
-        json_mode_value = (os.getenv("DM_LLM_JSON_MODE") or "on").strip().lower()
+        return cls.from_mapping(
+            {
+                "model": os.getenv("DM_LLM_MODEL") or os.getenv("OPENAI_MODEL") or "",
+                "base_url": os.getenv("DM_LLM_BASE_URL") or os.getenv("OPENAI_BASE_URL") or "",
+                "api_key": os.getenv("DM_LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or "",
+                "timeout_seconds": os.getenv("DM_LLM_TIMEOUT") or "30",
+                "temperature": os.getenv("DM_LLM_TEMPERATURE") or "0.7",
+                "force_json_output": (os.getenv("DM_LLM_JSON_MODE") or "on").strip().lower() not in {"off", "false", "0"},
+            }
+        )
+
+    @classmethod
+    def from_mapping(cls, payload: dict[str, Any] | None) -> "OpenAICompatibleClient | None":
+        if not payload:
+            return None
+
+        model = str(payload.get("model") or "").strip()
+        base_url = str(payload.get("base_url") or "").strip()
+        api_key = str(payload.get("api_key") or "").strip()
+        timeout_value = payload.get("timeout_seconds") or 30
+        temperature_value = payload.get("temperature") or 0.7
+        force_json_output = bool(payload.get("force_json_output", True))
 
         if not model or not base_url:
             return None
@@ -43,7 +60,7 @@ class OpenAICompatibleClient:
             api_key=api_key,
             timeout_seconds=float(timeout_value),
             temperature=float(temperature_value),
-            force_json_output=json_mode_value not in {"off", "false", "0"},
+            force_json_output=force_json_output,
         )
         return cls(config)
 
@@ -84,3 +101,4 @@ class OpenAICompatibleClient:
         if cleaned.endswith("/chat/completions"):
             return cleaned
         return cleaned + "/chat/completions"
+

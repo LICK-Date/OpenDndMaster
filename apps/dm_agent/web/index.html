@@ -9,26 +9,59 @@
 <body>
   <div class="grain"></div>
   <div class="app-shell">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">Riverside Session Console</p>
-        <h1>Dungeon Master</h1>
-        <p class="header-copy">把当前 CLI 跑团后端包进一个可玩的聊天式界面里。</p>
-      </div>
-      <div class="world-controls">
-        <label class="field-label" for="world-id">World</label>
-        <input id="world-id" type="text" value="campaign_01" list="world-suggestions" spellcheck="false">
-        <datalist id="world-suggestions"></datalist>
-        <button id="load-world" class="ghost-btn">Load</button>
-        <button id="create-world" class="ghost-btn">New</button>
-      </div>
-    </header>
+    <main class="workspace-grid">
+      <aside class="app-nav card">
+        <div class="brand-block">
+          <h1>Dungeon Master</h1>
+        </div>
 
-    <main class="layout">
-      <section class="chat-panel card">
-        <div class="panel-head">
+        <section class="nav-section player-section">
+          <div class="section-head">
+            <span class="section-dot"></span>
+            <p class="section-title">角色概览</p>
+          </div>
+          <div class="nav-card player-card">
+            <div class="player-topline">
+              <div>
+                <p class="eyebrow small">Traveler</p>
+                <h3 id="player-name">Unknown</h3>
+              </div>
+              <span id="player-location" class="location-badge">Nowhere</span>
+            </div>
+            <p id="player-background" class="nav-copy"></p>
+            <div id="attribute-grid" class="attribute-grid compact"></div>
+          </div>
+        </section>
+
+        <section class="nav-section nav-utility-bar" aria-label="快捷操作">
+          <button id="import-world-btn" class="utility-btn" type="button" aria-label="导入世界" data-tooltip="导入世界">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 4v10"></path>
+              <path d="M8 8l4-4 4 4"></path>
+              <path d="M5 14v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"></path>
+            </svg>
+          </button>
+          <button id="export-world-btn" class="utility-btn" type="button" aria-label="导出世界" data-tooltip="导出世界">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 20V10"></path>
+              <path d="M8 16l4 4 4-4"></path>
+              <path d="M5 10V6a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v4"></path>
+            </svg>
+          </button>
+          <button id="open-settings-btn" class="utility-btn" type="button" aria-label="设置" data-tooltip="设置">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 8.5A3.5 3.5 0 1 0 12 15.5A3.5 3.5 0 1 0 12 8.5Z"></path>
+              <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1 1 0 0 1 0 1.4l-1.2 1.2a1 1 0 0 1-1.4 0l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a1 1 0 0 1-1 1h-1.6a1 1 0 0 1-1-1v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a1 1 0 0 1-1.4 0l-1.2-1.2a1 1 0 0 1 0-1.4l.1-.1A1 1 0 0 0 5 15a1 1 0 0 0-.9-.6H4a1 1 0 0 1-1-1v-1.6a1 1 0 0 1 1-1h.2A1 1 0 0 0 5 9.9a1 1 0 0 0-.2-1.1l-.1-.1a1 1 0 0 1 0-1.4l1.2-1.2a1 1 0 0 1 1.4 0l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9V4a1 1 0 0 1 1-1h1.6a1 1 0 0 1 1 1v.2a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a1 1 0 0 1 1.4 0l1.2 1.2a1 1 0 0 1 0 1.4l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.2a1 1 0 0 1 1 1v1.6a1 1 0 0 1-1 1h-.2a1 1 0 0 0-.9.6Z"></path>
+            </svg>
+          </button>
+        </section>
+
+      </aside>
+
+      <section class="main-stage card">
+        <header class="stage-head">
           <div>
-            <p class="eyebrow">Session Feed</p>
+            <p class="eyebrow">聊天</p>
             <h2 id="world-title">Awaiting world</h2>
             <p id="world-path" class="world-path">尚未载入世界。</p>
           </div>
@@ -36,17 +69,20 @@
             <span class="meta-pill" id="source-pill">template</span>
             <span class="meta-pill" id="roll-pill">no roll</span>
           </div>
+        </header>
+
+        <div class="stage-feed">
+          <div id="chat-log" class="chat-log chat-log-stage">
+            <article class="message system">
+              <p>壁炉还没完全烧旺。先选择一个世界，然后写下你的第一步行动。</p>
+            </article>
+          </div>
+
         </div>
 
-        <div id="chat-log" class="chat-log">
-          <article class="message system">
-            <p>壁炉还没完全烧旺。先选择一个世界，然后写下你的第一步行动。</p>
-          </article>
-        </div>
-
-        <form id="turn-form" class="composer">
+        <form id="turn-form" class="composer composer-bottom">
           <label class="field-label" for="turn-input">Your move</label>
-          <textarea id="turn-input" rows="4" placeholder="例如：我走近吧台，对Mara说我想打听最近码头上的怪事。"></textarea>
+          <textarea id="turn-input" rows="5" placeholder="例如：我走近吧台，对Mara说我想打听最近码头上的怪事。"></textarea>
           <div class="composer-actions">
             <p id="status-line" class="status-line">Ready. Enter 发送，Shift+Enter 换行。</p>
             <button id="send-turn" type="submit" class="send-btn">Send Turn</button>
@@ -54,55 +90,75 @@
         </form>
       </section>
 
-      <aside class="side-panel">
-        <section class="card stat-card">
-          <div class="panel-head compact">
-            <div>
-              <p class="eyebrow">Traveler</p>
-              <h3 id="player-name">Unknown</h3>
-            </div>
-            <span id="player-location" class="location-badge">Nowhere</span>
+      <section class="session-rail card">
+        <section class="nav-section current-world-section rail-world-section">
+          <div class="section-head">
+            <span class="section-dot"></span>
+            <p class="section-title">当前世界</p>
           </div>
-          <p id="player-background" class="muted-copy"></p>
-          <div id="attribute-grid" class="attribute-grid"></div>
-          <div class="reputation-strip">
-            <div><span>Notoriety</span><strong id="rep-notoriety">0</strong></div>
-            <div><span>Goodwill</span><strong id="rep-goodwill">0</strong></div>
-            <div><span>Heroic</span><strong id="rep-heroic">0</strong></div>
+          <div class="nav-world-card">
+            <h2 id="nav-world-name">Awaiting world</h2>
+            <p id="world-city" class="nav-world-city">Unknown</p>
+            <p id="world-tone" class="nav-copy">尚未载入世界。</p>
+            <div class="chip-row" id="faction-row"></div>
           </div>
         </section>
 
-        <section class="card world-card">
-          <div class="panel-head compact">
-            <div>
-              <p class="eyebrow">World</p>
-              <h3 id="world-city">Unknown</h3>
+        <section id="world-archive-panel" class="session-list-wrap rail-card collapsible-card expanded">
+          <div class="archive-head collapsible-head">
+            <div class="archive-title-wrap">
+              <span class="section-dot"></span>
+              <p class="section-title archive-label">World Archive</p>
+            </div>
+            <div class="archive-actions">
+              <button id="create-world" class="icon-btn" type="button" title="新建世界" aria-label="新建世界">+</button>
+              <button id="toggle-world-archive" class="collapse-btn" type="button" aria-expanded="true" aria-controls="world-archive-body" title="展开或收起 World Archive">▾</button>
             </div>
           </div>
-          <p id="world-tone" class="muted-copy"></p>
-          <div class="chip-row" id="faction-row"></div>
+          <div id="world-archive-body" class="collapsible-body archive-body">
+            <input id="world-id" type="hidden" value="campaign_01">
+            <form id="create-world-form" class="create-world-form" hidden>
+              <label class="settings-field" for="create-world-input">
+                <span>新的 World ID</span>
+                <input id="create-world-input" type="text" placeholder="例如：campaign_night_market" autocomplete="off">
+              </label>
+              <div class="create-world-actions">
+                <button id="confirm-create-world" class="send-btn" type="submit">创建世界</button>
+                <button id="cancel-create-world" class="ghost-btn mini-ghost" type="button">取消</button>
+              </div>
+              <p class="create-world-hint">仅支持字母、数字、下划线和连字符。</p>
+            </form>
+            <datalist id="world-suggestions"></datalist>
+            <div id="session-list" class="session-list"></div>
+          </div>
         </section>
 
-        <section class="card npc-card">
-          <div class="panel-head compact">
-            <div>
-              <p class="eyebrow">Cast</p>
-              <h3>NPCs</h3>
+        <section id="npc-panel" class="rail-card compact-card collapsible-card collapsed upward-collapsible">
+          <div class="archive-head collapsible-head">
+            <div class="archive-title-wrap">
+              <span class="section-dot"></span>
+              <p class="section-title archive-label">NPCs</p>
             </div>
+            <button id="toggle-npc-panel" class="collapse-btn" type="button" aria-expanded="false" aria-controls="npc-panel-body" title="展开或收起 NPCs">▸</button>
           </div>
-          <div id="npc-list" class="npc-list"></div>
+          <div id="npc-panel-body" class="collapsible-body" hidden>
+            <div id="npc-list" class="npc-list compact-list rail-npc-list"></div>
+          </div>
         </section>
 
-        <section class="card recent-card">
-          <div class="panel-head compact">
-            <div>
-              <p class="eyebrow">Trace</p>
-              <h3>Recent Events</h3>
+        <section id="recent-events-panel" class="rail-card compact-card collapsible-card collapsed upward-collapsible">
+          <div class="archive-head collapsible-head">
+            <div class="archive-title-wrap">
+              <span class="section-dot"></span>
+              <p class="section-title archive-label">Recent Events</p>
             </div>
+            <button id="toggle-recent-events" class="collapse-btn" type="button" aria-expanded="false" aria-controls="recent-events-wrap" title="展开或收起 Recent Events">▸</button>
           </div>
-          <ul id="recent-events" class="recent-list"></ul>
+          <div id="recent-events-wrap" class="collapsible-body" hidden>
+            <ul id="recent-events" class="recent-list"></ul>
+          </div>
         </section>
-      </aside>
+      </section>
     </main>
   </div>
 
@@ -113,6 +169,78 @@
     </article>
   </template>
 
+  <div id="settings-modal" class="settings-modal" hidden>
+    <div class="settings-backdrop" data-close-settings></div>
+    <section class="settings-dialog card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <header class="settings-head">
+        <div>
+          <p class="eyebrow">设置</p>
+          <h2 id="settings-title">LLM 接入管理</h2>
+          <p class="settings-copy">为跑团会话添加、编辑并切换当前使用的模型配置。</p>
+        </div>
+        <button id="close-settings-btn" class="close-btn" type="button" aria-label="关闭设置">×</button>
+      </header>
+      <div class="settings-layout">
+        <aside class="settings-sidebar">
+          <div class="settings-sidebar-head">
+            <div>
+              <p class="section-title">模型配置</p>
+              <p class="settings-copy small">选择一个已有配置，或新建一条接入信息。</p>
+            </div>
+            <button id="new-llm-profile-btn" class="ghost-btn mini-ghost" type="button">新建</button>
+          </div>
+          <div id="llm-profile-list" class="llm-profile-list"></div>
+        </aside>
+        <section class="settings-main">
+          <form id="llm-settings-form" class="llm-settings-form">
+            <input id="llm-profile-id" type="hidden">
+            <label class="settings-field">
+              <span>配置名称</span>
+              <input id="llm-profile-label" type="text" placeholder="例如：SiliconFlow DeepSeek">
+            </label>
+            <label class="settings-field">
+              <span>模型名</span>
+              <input id="llm-profile-model" type="text" placeholder="例如：deepseek-ai/DeepSeek-V3.2">
+            </label>
+            <label class="settings-field">
+              <span>接入地址</span>
+              <input id="llm-profile-base-url" type="text" placeholder="例如：https://api.siliconflow.cn/v1">
+            </label>
+            <label class="settings-field">
+              <span>API Key</span>
+              <input id="llm-profile-api-key" type="password" placeholder="sk-...">
+            </label>
+            <div class="settings-grid">
+              <label class="settings-field">
+                <span>超时秒数</span>
+                <input id="llm-profile-timeout" type="number" min="1" step="1" value="60">
+              </label>
+              <label class="settings-field">
+                <span>Temperature</span>
+                <input id="llm-profile-temperature" type="number" min="0" max="2" step="0.1" value="0.7">
+              </label>
+            </div>
+            <label class="settings-toggle">
+              <input id="llm-profile-json" type="checkbox" checked>
+              <span>强制 JSON 输出</span>
+            </label>
+            <div class="settings-actions">
+              <button id="save-llm-profile-btn" class="send-btn" type="submit">保存配置</button>
+              <button id="activate-llm-profile-btn" class="ghost-btn" type="button">设为当前</button>
+              <button id="delete-llm-profile-btn" class="ghost-btn danger-ghost" type="button">删除</button>
+            </div>
+            <p id="settings-status" class="settings-status">这里会显示保存和切换结果。</p>
+          </form>
+        </section>
+      </div>
+    </section>
+  </div>
+
   <script src="/app.js" type="module"></script>
 </body>
 </html>
+
+
+
+
+

@@ -6,5 +6,7 @@
     "Town Watch",
     "River Traders"
   ],
-  "recent_events": []
+  "recent_events": [
+    "Turn action: 初始化世界 | action_type: narrative | outcome: not_required"
+  ]
 }

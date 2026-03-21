@@ -3,6 +3,7 @@
 import argparse
 import json
 import re
+import shutil
 import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -21,7 +22,14 @@ if str(LANGGRAPH_SRC) not in sys.path:
     sys.path.insert(0, str(LANGGRAPH_SRC))
 
 from apps.dm_agent.graph import build_graph
-from apps.dm_agent.memory_store import get_world_paths, load_world_memory
+from apps.dm_agent.memory_store import append_session_transcript, get_world_paths, load_session_transcript, load_world_memory
+from apps.dm_agent.settings_store import (
+    activate_llm_profile,
+    delete_llm_profile,
+    get_active_llm_profile,
+    load_llm_settings,
+    upsert_llm_profile,
+)
 
 
 def validate_world_id(world_id: str) -> str:
@@ -34,11 +42,13 @@ def validate_world_id(world_id: str) -> str:
 
 
 def run_turn(graph, world_id: str, player_input: str) -> dict:
+    active_llm_profile = get_active_llm_profile(str(REPO_ROOT))
     return graph.invoke(
         {
             "world_id": world_id,
             "workspace_root": str(REPO_ROOT),
             "player_input": player_input,
+            "llm_config": active_llm_profile or {},
         }
     )
 
@@ -47,6 +57,27 @@ def list_worlds() -> list[str]:
     worlds_dir = REPO_ROOT / "workspace_data" / "worlds"
     worlds_dir.mkdir(parents=True, exist_ok=True)
     return sorted([item.name for item in worlds_dir.iterdir() if item.is_dir()])
+
+
+def delete_world(world_id: str) -> dict:
+    world_id = validate_world_id(world_id)
+    worlds = list_worlds()
+    if world_id not in worlds:
+        raise ValueError(f"world '{world_id}' does not exist")
+    if len(worlds) <= 1:
+        raise ValueError("at least one world must remain")
+
+    paths = get_world_paths(str(REPO_ROOT), world_id)
+    if not paths["world_dir"].exists():
+        raise ValueError(f"world '{world_id}' does not exist")
+
+    shutil.rmtree(paths["world_dir"])
+    remaining = list_worlds()
+    return {
+        "deleted_world_id": world_id,
+        "worlds": remaining,
+        "fallback_world_id": remaining[0] if remaining else "",
+    }
 
 
 def build_world_summary(world_id: str) -> dict:
@@ -75,6 +106,7 @@ def build_world_summary(world_id: str) -> dict:
             "reputation": player.get("hidden_reputation", {}),
             "equipment": player.get("equipment", []),
         },
+        "transcript": load_session_transcript(str(REPO_ROOT), world_id),
         "npcs": [
             {
                 "id": npc_id,
@@ -104,6 +136,9 @@ class DMRequestHandler(BaseHTTPRequestHandler):
                 world_id = validate_world_id(parse_qs(parsed.query).get("world_id", ["demo"])[0])
                 self._send_json(build_world_summary(world_id))
                 return
+            if parsed.path == "/api/settings/llm":
+                self._send_json(load_llm_settings(str(REPO_ROOT)))
+                return
             self._serve_static(parsed.path)
         except ValueError as exc:
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
@@ -121,6 +156,23 @@ class DMRequestHandler(BaseHTTPRequestHandler):
                     self._send_json({"error": "input is required"}, status=HTTPStatus.BAD_REQUEST)
                     return
                 result = run_turn(self.graph, world_id, player_input)
+                memory = load_world_memory(str(REPO_ROOT), world_id)
+                append_session_transcript(
+                    str(REPO_ROOT),
+                    world_id,
+                    [
+                        {
+                            "kind": "player",
+                            "speaker": memory["player_profile"].get("name", "Traveler"),
+                            "content": player_input,
+                        },
+                        {
+                            "kind": "gm",
+                            "speaker": "Dungeon Master",
+                            "content": result.get("final_response", ""),
+                        },
+                    ],
+                )
                 summary = build_world_summary(world_id)
                 self._send_json({"result": result, "summary": summary})
                 return
@@ -128,6 +180,22 @@ class DMRequestHandler(BaseHTTPRequestHandler):
                 world_id = validate_world_id(body.get("world_id") or "")
                 summary = build_world_summary(world_id)
                 self._send_json(summary, status=HTTPStatus.CREATED)
+                return
+            if parsed.path == "/api/worlds/delete":
+                payload = delete_world(body.get("world_id") or "")
+                self._send_json(payload)
+                return
+            if parsed.path == "/api/settings/llm/save":
+                payload = upsert_llm_profile(str(REPO_ROOT), body.get("profile") or {})
+                self._send_json(payload)
+                return
+            if parsed.path == "/api/settings/llm/delete":
+                payload = delete_llm_profile(str(REPO_ROOT), body.get("profile_id") or "")
+                self._send_json(payload)
+                return
+            if parsed.path == "/api/settings/llm/activate":
+                payload = activate_llm_profile(str(REPO_ROOT), body.get("profile_id") or "")
+                self._send_json(payload)
                 return
             self._send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
         except ValueError as exc:
@@ -147,6 +215,8 @@ class DMRequestHandler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store, max-age=0")
+        self.send_header("Pragma", "no-cache")
         self.end_headers()
         self.wfile.write(payload)
 
@@ -165,6 +235,8 @@ class DMRequestHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("Cache-Control", "no-store, max-age=0")
+        self.send_header("Pragma", "no-cache")
         self.end_headers()
         self.wfile.write(encoded)
 
@@ -202,3 +274,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+
+

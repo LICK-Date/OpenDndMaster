@@ -84,7 +84,7 @@ DEFAULT_NPC = {
 def _read_json(path: Path, default: Any) -> Any:
     if not path.exists():
         return default
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 def _write_json(path: Path, payload: Any) -> None:
@@ -138,6 +138,7 @@ def get_world_paths(workspace_root: str, world_id: str) -> dict[str, Path]:
         "player_md": world_info / "player.md",
         "npc_list": world_info / "NPC_List.json",
         "session_log": world_dir / "session_log.txt",
+        "session_transcript": world_dir / "session_transcript.json",
     }
 
 
@@ -163,6 +164,8 @@ def ensure_world_exists(workspace_root: str, world_id: str) -> None:
 
     if not paths["session_log"].exists():
         paths["session_log"].write_text("", encoding="utf-8")
+    if not paths["session_transcript"].exists():
+        paths["session_transcript"].write_text("[]", encoding="utf-8")
 
 
 def _normalize_player_profile(profile: dict[str, Any]) -> dict[str, Any]:
@@ -231,7 +234,7 @@ def load_world_memory(workspace_root: str, world_id: str) -> MemorySnapshot:
         _read_json(paths["player_profile"], DEFAULT_PLAYER_PROFILE)
     )
     npc_index = _read_json(paths["npc_list"], DEFAULT_NPC_INDEX)
-    player_markdown = paths["player_md"].read_text(encoding="utf-8")
+    player_markdown = paths["player_md"].read_text(encoding="utf-8-sig")
     snapshot: MemorySnapshot = {
         "world": _read_json(paths["world_json"], DEFAULT_WORLD),
         "player_profile": player_profile,
@@ -302,3 +305,50 @@ def apply_reputation_change(
         reputation["goodwill"] = max(0, reputation["goodwill"] - new_notoriety_tiers)
         reputation["heroic"] = max(0, reputation["heroic"] - new_notoriety_tiers)
         meta["applied_notoriety_tiers"] += new_notoriety_tiers
+
+
+def load_session_transcript(workspace_root: str, world_id: str) -> list[dict[str, str]]:
+    ensure_world_exists(workspace_root, world_id)
+    paths = get_world_paths(workspace_root, world_id)
+    payload = _read_json(paths["session_transcript"], [])
+    if not isinstance(payload, list):
+        return []
+    transcript: list[dict[str, str]] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "system").strip() or "system"
+        speaker = str(item.get("speaker") or "System").strip() or "System"
+        content = str(item.get("content") or "").strip()
+        if not content:
+            continue
+        transcript.append({
+            "kind": kind,
+            "speaker": speaker,
+            "content": content,
+        })
+    return transcript[-80:]
+
+
+def append_session_transcript(workspace_root: str, world_id: str, entries: list[dict[str, str]]) -> None:
+    paths = get_world_paths(workspace_root, world_id)
+    transcript = load_session_transcript(workspace_root, world_id)
+    for item in entries:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "system").strip() or "system"
+        speaker = str(item.get("speaker") or "System").strip() or "System"
+        content = str(item.get("content") or "").strip()
+        if not content:
+            continue
+        transcript.append({
+            "kind": kind,
+            "speaker": speaker,
+            "content": content,
+        })
+    paths["session_transcript"].write_text(
+        json.dumps(transcript[-80:], ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+

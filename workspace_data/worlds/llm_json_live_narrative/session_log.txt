@@ -1,1 +1,0 @@
-Turn action: 我坐在角落里观察酒馆里的动静 | action_type: narrative | outcome: not_required

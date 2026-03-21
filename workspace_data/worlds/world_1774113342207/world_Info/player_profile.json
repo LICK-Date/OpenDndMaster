@@ -22,7 +22,9 @@
     "travel cloak",
     "coin pouch"
   ],
-  "history": [],
+  "history": [
+    "Turn action: 初始化世界 | action_type: narrative | outcome: not_required"
+  ],
   "relationships": [],
   "status": {
     "location": "Riverside Inn",

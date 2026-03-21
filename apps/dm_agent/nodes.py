@@ -278,7 +278,7 @@ def _parse_json_narrative(raw_text: str) -> tuple[list[str], str]:
 
 def render_narrative_node(state: GMState) -> dict[str, Any]:
     fallback_sections, fallback_response = _render_template_narrative(state)
-    client = OpenAICompatibleClient.from_env()
+    client = OpenAICompatibleClient.from_mapping(state.get('llm_config')) or OpenAICompatibleClient.from_env()
     if client is None:
         return {
             "narrative_sections": fallback_sections,
@@ -303,3 +303,4 @@ def render_narrative_node(state: GMState) -> dict[str, Any]:
             "narrative_error": str(exc),
             "final_response": fallback_response,
         }
+

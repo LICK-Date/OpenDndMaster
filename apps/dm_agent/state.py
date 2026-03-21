@@ -50,4 +50,6 @@ class GMState(TypedDict, total=False):
     narrative_sections: list[str]
     narrative_source: NarrativeSource
     narrative_error: str
+    llm_config: dict[str, Any]
     final_response: str
+

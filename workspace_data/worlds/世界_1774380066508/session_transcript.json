@@ -1,0 +1,17 @@
+[
+  {
+    "kind": "gm",
+    "speaker": "Dungeon Master",
+    "content": "这是一片尚未成形的世界，故事会从你的选择开始。在继续之前，你希望在什么样的世界里冒险？可以告诉我时代、氛围、地点，或者你最想体验的元素。"
+  },
+  {
+    "kind": "player",
+    "speaker": "未命名",
+    "content": "我希望在千禧年氛围中的末日世界进行探险"
+  },
+  {
+    "kind": "gm",
+    "speaker": "Dungeon Master",
+    "content": "当前模型服务不可用"
+  }
+]

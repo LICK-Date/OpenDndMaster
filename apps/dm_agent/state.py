@@ -14,7 +14,7 @@ ActionType = Literal[
 ]
 
 RollResult = Literal["success", "partial", "failure", "not_required"]
-NarrativeSource = Literal["llm", "template"]
+NarrativeSource = Literal["llm", "template", "service_unavailable"]
 
 
 class RollOutcome(TypedDict, total=False):
@@ -52,4 +52,3 @@ class GMState(TypedDict, total=False):
     narrative_error: str
     llm_config: dict[str, Any]
     final_response: str
-

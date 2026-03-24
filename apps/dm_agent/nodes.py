@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from .dice import resolve_threshold_roll, roll_d20
@@ -22,6 +23,8 @@ from .rules import (
 from .state import GMState, RollOutcome
 
 
+MODEL_SERVICE_UNAVAILABLE_MESSAGE = "当前模型服务不可用"
+
 JSON_SECTION_KEYS = [
     ("scene", "场景描述"),
     ("npc_reaction", "NPC行为与反应"),
@@ -29,6 +32,32 @@ JSON_SECTION_KEYS = [
     ("consequence", "后果"),
     ("new_situation", "新局势与引导"),
 ]
+
+ATTRIBUTE_LABEL_TO_KEY = {
+    "力量": "strength",
+    "敏捷": "dexterity",
+    "智力": "intelligence",
+    "魅力": "charisma",
+    "体质": "constitution",
+    "天赋": "talent",
+}
+
+ATTRIBUTE_KEY_TO_LABEL = {
+    "strength": "力量",
+    "dexterity": "敏捷",
+    "intelligence": "智力",
+    "charisma": "魅力",
+    "constitution": "体质",
+    "talent": "天赋",
+}
+
+PLAYER_NAME_PATTERNS = [
+    re.compile(r"(?:我叫|我的名字叫|我的名字是|名字叫|名叫|请叫我)(?P<name>[^\s，。！？,.!?:：]{1,24})"),
+]
+
+ATTRIBUTE_VALUE_PATTERN = re.compile(
+    r"(?P<label>力量|敏捷|智力|魅力|体质|天赋)\s*(?:[:：=]|是|为)?\s*(?P<value>\d{1,2})"
+)
 
 
 def load_memory_node(state: GMState) -> dict[str, Any]:
@@ -120,6 +149,68 @@ def resolve_action_node(state: GMState) -> dict[str, Any]:
     return {"roll": roll}
 
 
+def _extract_player_name(player_input: str) -> str:
+    for pattern in PLAYER_NAME_PATTERNS:
+        match = pattern.search(player_input)
+        if not match:
+            continue
+        candidate = match.group("name").strip('"“”‘’「」『』')
+        if candidate:
+            return candidate
+    return ""
+
+
+def _extract_attribute_updates(player_input: str) -> dict[str, int]:
+    updates: dict[str, int] = {}
+    for match in ATTRIBUTE_VALUE_PATTERN.finditer(player_input):
+        label = match.group("label")
+        try:
+            value = int(match.group("value"))
+        except ValueError:
+            continue
+        if not 1 <= value <= 30:
+            continue
+        key = ATTRIBUTE_LABEL_TO_KEY[label]
+        updates[key] = value
+    return updates
+
+
+def _refresh_player_setup_background(player_profile: dict[str, Any]) -> None:
+    attributes = player_profile.get("attributes", {})
+    complete = all(attributes.get(key) not in {None, "", "??"} for key in ATTRIBUTE_KEY_TO_LABEL)
+    current_background = str(player_profile.get("background") or "").strip()
+    if complete:
+        if not current_background or "角色尚未创建" in current_background or "角色正在建立中" in current_background:
+            player_profile["background"] = "角色已完成基础建卡，可以继续补充背景与故事。"
+        return
+    if not current_background or "角色尚未创建" in current_background:
+        player_profile["background"] = "角色正在建立中，请继续填写名字和六维属性。"
+
+
+def _apply_player_profile_updates(player_profile: dict[str, Any], player_input: str, consequences: list[str]) -> None:
+    updated_attributes: list[str] = []
+    new_name = _extract_player_name(player_input)
+    current_name = str(player_profile.get("name") or "").strip() or "未命名"
+    if new_name and new_name != current_name:
+        player_profile["name"] = new_name
+        consequences.append(f"你的角色正式有了名字，从这一刻起，你将以“{new_name}”之名被这个世界记住。")
+
+    attribute_updates = _extract_attribute_updates(player_input)
+    if attribute_updates:
+        attributes = player_profile.setdefault("attributes", {})
+        for key, value in attribute_updates.items():
+            if attributes.get(key) == value:
+                continue
+            attributes[key] = value
+            updated_attributes.append(f"{ATTRIBUTE_KEY_TO_LABEL[key]} {value}")
+
+    if updated_attributes:
+        consequences.append(f"你的角色卡逐渐清晰起来：{'、'.join(updated_attributes)}。")
+
+    if new_name or updated_attributes:
+        _refresh_player_setup_background(player_profile)
+
+
 def _apply_npc_impact(state: GMState, consequences: list[str]) -> None:
     target_npc_id = state.get("target_npc_id", "")
     if not target_npc_id:
@@ -180,6 +271,8 @@ def apply_consequences_node(state: GMState) -> dict[str, Any]:
     else:
         consequences.append("这一回合没有激起真正的风浪，事情只是顺着你的举动往前滑去。")
 
+    _apply_player_profile_updates(player_profile, player_input, consequences)
+
     notoriety_delta, goodwill_delta, heroic_delta = infer_reputation_deltas(
         player_input=player_input,
         action_type=state["action_type"],
@@ -215,25 +308,34 @@ def _render_template_narrative(state: GMState) -> tuple[list[str], str]:
     memory = state["memory"]
     world = memory["world"]
     player_profile = memory["player_profile"]
-    npc_name = state.get("target_npc_name") or (
-        memory["npc_index"][0]["name"] if memory["npc_index"] else "旁观者"
-    )
-    location = player_profile["status"]["location"]
+    world_name = world.get("world_name") or state["world_id"]
+    current_city = world.get("current_city") or "未知地域"
+    world_tone = world.get("tone") or "未定"
+    location = player_profile.get("status", {}).get("location", "未知地点")
+
+    npc_name = state.get("target_npc_name")
+    if not npc_name and memory["npc_index"]:
+        npc_name = memory["npc_index"][0].get("name") or "某位旁观者"
 
     scene = (
-        f"{world['current_city']} 的 {location} 里，空气里混着木柴、酒气与低声交谈。"
-        f" 你刚刚采取的行动是“{state['player_input']}”。"
+        f"你正站在“{world_name}”的冒险起点，眼前地点是{location}，它属于{current_city}这一带。"
+        f" 这个世界此刻还带着“{world_tone}”的雏形，而你刚刚采取的行动是“{state['player_input']}”。"
     )
-    npc_reaction = (
-        f"{npc_name}抬眼打量了你一下，像是在衡量你的来意和分量。"
-        f" 她没有急着表态，只把注意力短暂地压在你身上，等着看你下一步会怎么走。"
-    )
+    if npc_name:
+        npc_reaction = (
+            f"{npc_name}最先被你的举动吸引了注意力，对方没有立刻给出全部态度，"
+            "而是先观察你的分寸、语气和下一步打算，再决定要把局势往哪里推。"
+        )
+    else:
+        npc_reaction = (
+            "周围暂时没有明确的关键人物站出来回应你，最先被惊动的是环境本身。"
+            " 细微的声响、气氛里的停顿，以及世界对你行动的反馈，都在提醒你故事已经开始成形。"
+        )
     resolution = state["roll"]["summary"]
     consequence = " ".join(state["consequences"])
     new_situation = (
-        "局面已经出现新的缝隙与压力。"
-        " 周围人的视线、环境细节以及说话停顿中暴露出的犹豫，"
-        " 都在暗示后续可以继续追击、暂时收手，或转向另一条更隐蔽的路径。"
+        "新的局势已经展开。"
+        " 你既可以顺着刚刚撬开的缺口继续深入，也可以换个方向重新定义这个世界的规则、人物与风险。"
     )
     sections = [scene, npc_reaction, resolution, consequence, new_situation]
     return sections, "\n\n".join(sections)
@@ -276,6 +378,15 @@ def _parse_json_narrative(raw_text: str) -> tuple[list[str], str]:
     return sections, "\n\n".join(rendered)
 
 
+def _render_service_unavailable_response() -> dict[str, Any]:
+    return {
+        "narrative_sections": [MODEL_SERVICE_UNAVAILABLE_MESSAGE],
+        "narrative_source": "service_unavailable",
+        "narrative_error": MODEL_SERVICE_UNAVAILABLE_MESSAGE,
+        "final_response": MODEL_SERVICE_UNAVAILABLE_MESSAGE,
+    }
+
+
 def render_narrative_node(state: GMState) -> dict[str, Any]:
     fallback_sections, fallback_response = _render_template_narrative(state)
     client = OpenAICompatibleClient.from_mapping(state.get('llm_config')) or OpenAICompatibleClient.from_env()
@@ -296,11 +407,7 @@ def render_narrative_node(state: GMState) -> dict[str, Any]:
             "narrative_error": "",
             "final_response": parsed_response,
         }
-    except LLMClientError as exc:
-        return {
-            "narrative_sections": fallback_sections,
-            "narrative_source": "template",
-            "narrative_error": str(exc),
-            "final_response": fallback_response,
-        }
+    except LLMClientError:
+        return _render_service_unavailable_response()
+
 

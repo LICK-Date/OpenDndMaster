@@ -57,6 +57,15 @@ SHOWWORTHY_MARKERS = [
 ]
 
 
+def _coerce_score(value: object, fallback: int = 10) -> int:
+    if value in {None, "", "??"}:
+        return fallback
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
 def classify_action(player_input: str) -> tuple[ActionType, str]:
     for action_type, keywords in ACTION_KEYWORDS:
         if any(keyword in player_input for keyword in keywords):
@@ -119,22 +128,22 @@ def calculate_threshold(
 
     if action_type == "social":
         threshold = (
-            int(attributes["charisma"])
+            _coerce_score(attributes.get("charisma"))
             + int(reputation["goodwill"])
             + int(reputation["heroic"])
         )
-        resistance = int(target_npc.get("social_resistance", 10))
+        resistance = _coerce_score(target_npc.get("social_resistance"), fallback=10)
         threshold += 10 - resistance
-        threshold += max(-2, min(2, int(target_npc.get("favorability", 0)) // 2))
+        threshold += max(-2, min(2, _coerce_score(target_npc.get("favorability"), fallback=0) // 2))
         return max(2, min(20, threshold)), "charisma"
 
     if action_type == "threaten":
         threshold = (
-            int(attributes["constitution"])
+            _coerce_score(attributes.get("constitution"))
             + int(reputation["notoriety"])
             - int(reputation["goodwill"])
         )
-        target_constitution = int(target_npc.get("attributes", {}).get("constitution", 10))
+        target_constitution = _coerce_score(target_npc.get("attributes", {}).get("constitution"), fallback=10)
         threshold += 10 - target_constitution
         return max(2, min(20, threshold)), "constitution"
 
@@ -148,7 +157,7 @@ def calculate_threshold(
     attribute = attribute_map[action_type]
     if not attribute:
         return 0, ""
-    return max(2, min(20, int(attributes[attribute]))), attribute
+    return max(2, min(20, _coerce_score(attributes.get(attribute)))), attribute
 
 
 def infer_reputation_deltas(

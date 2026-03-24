@@ -1,0 +1,31 @@
+{
+  "name": "未命名",
+  "background": "角色尚未创建，请先为角色命名并填写六维属性。",
+  "attributes": {
+    "strength": null,
+    "dexterity": null,
+    "intelligence": null,
+    "charisma": null,
+    "constitution": null,
+    "talent": null
+  },
+  "hidden_reputation": {
+    "notoriety": 0,
+    "goodwill": 0,
+    "heroic": 0
+  },
+  "hidden_reputation_meta": {
+    "applied_goodwill_tiers": 0,
+    "applied_notoriety_tiers": 0
+  },
+  "equipment": [],
+  "history": [
+    "Turn action: 我希望在千禧年氛围中的末日世界进行探险 | action_type: narrative | outcome: not_required"
+  ],
+  "relationships": [],
+  "status": {
+    "location": "世界入口",
+    "injury": "none",
+    "wanted": false
+  }
+}

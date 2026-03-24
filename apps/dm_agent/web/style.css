@@ -15,6 +15,10 @@
 
 * { box-sizing: border-box; }
 
+[hidden] {
+  display: none !important;
+}
+
 html, body {
   height: 100%;
 }
@@ -1140,6 +1144,7 @@ body.modal-open {
     max-height: 260px;
   }
 }
+
 
 
 

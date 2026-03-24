@@ -1,0 +1,1 @@
+Turn action: 我希望在千禧年氛围中的末日世界进行探险 | action_type: narrative | outcome: not_required

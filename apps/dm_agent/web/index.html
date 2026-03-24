@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dungeon Master Console</title>
+  <title>地下城主控制台</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -12,7 +12,8 @@
     <main class="workspace-grid">
       <aside class="app-nav card">
         <div class="brand-block">
-          <h1>Dungeon Master</h1>
+          <h1>Dungeon</h1>
+          <h1>Master</h1>
         </div>
 
         <section class="nav-section player-section">
@@ -23,10 +24,10 @@
           <div class="nav-card player-card">
             <div class="player-topline">
               <div>
-                <p class="eyebrow small">Traveler</p>
-                <h3 id="player-name">Unknown</h3>
+                <p class="eyebrow small">角色</p>
+                <h3 id="player-name">未命名</h3>
               </div>
-              <span id="player-location" class="location-badge">Nowhere</span>
+              <span id="player-location" class="location-badge">未知地点</span>
             </div>
             <p id="player-background" class="nav-copy"></p>
             <div id="attribute-grid" class="attribute-grid compact"></div>
@@ -61,13 +62,9 @@
       <section class="main-stage card">
         <header class="stage-head">
           <div>
-            <p class="eyebrow">聊天</p>
-            <h2 id="world-title">Awaiting world</h2>
+            <p class="eyebrow">对话</p>
+            <h2 id="world-title">等待载入世界</h2>
             <p id="world-path" class="world-path">尚未载入世界。</p>
-          </div>
-          <div class="meta-pill-row">
-            <span class="meta-pill" id="source-pill">template</span>
-            <span class="meta-pill" id="roll-pill">no roll</span>
           </div>
         </header>
 
@@ -81,11 +78,11 @@
         </div>
 
         <form id="turn-form" class="composer composer-bottom">
-          <label class="field-label" for="turn-input">Your move</label>
-          <textarea id="turn-input" rows="5" placeholder="例如：我走近吧台，对Mara说我想打听最近码头上的怪事。"></textarea>
+          <label class="field-label" for="turn-input">你的行动</label>
+          <textarea id="turn-input" rows="5" placeholder="例如：我走近吧台，对老板说我想打听最近码头上的怪事。"></textarea>
           <div class="composer-actions">
-            <p id="status-line" class="status-line">Ready. Enter 发送，Shift+Enter 换行。</p>
-            <button id="send-turn" type="submit" class="send-btn">Send Turn</button>
+            <p id="status-line" class="status-line">就绪。回车发送，换行请使用组合键。</p>
+            <button id="send-turn" type="submit" class="send-btn">发送</button>
           </div>
         </form>
       </section>
@@ -97,8 +94,8 @@
             <p class="section-title">当前世界</p>
           </div>
           <div class="nav-world-card">
-            <h2 id="nav-world-name">Awaiting world</h2>
-            <p id="world-city" class="nav-world-city">Unknown</p>
+            <h2 id="nav-world-name">等待载入世界</h2>
+            <p id="world-city" class="nav-world-city">未知地点</p>
             <p id="world-tone" class="nav-copy">尚未载入世界。</p>
             <div class="chip-row" id="faction-row"></div>
           </div>
@@ -108,25 +105,24 @@
           <div class="archive-head collapsible-head">
             <div class="archive-title-wrap">
               <span class="section-dot"></span>
-              <p class="section-title archive-label">World Archive</p>
+              <p class="section-title archive-label">世界档案</p>
             </div>
             <div class="archive-actions">
               <button id="create-world" class="icon-btn" type="button" title="新建世界" aria-label="新建世界">+</button>
-              <button id="toggle-world-archive" class="collapse-btn" type="button" aria-expanded="true" aria-controls="world-archive-body" title="展开或收起 World Archive">▾</button>
+              <button id="toggle-world-archive" class="collapse-btn" type="button" aria-expanded="true" aria-controls="world-archive-body" title="展开或收起世界档案">▾</button>
             </div>
           </div>
           <div id="world-archive-body" class="collapsible-body archive-body">
             <input id="world-id" type="hidden" value="campaign_01">
             <form id="create-world-form" class="create-world-form" hidden>
               <label class="settings-field" for="create-world-input">
-                <span>新的 World ID</span>
-                <input id="create-world-input" type="text" placeholder="例如：campaign_night_market" autocomplete="off">
+                <span>新的世界编号</span>
+                <input id="create-world-input" type="text" placeholder="例如：超级棒棒糖" autocomplete="off">
               </label>
               <div class="create-world-actions">
                 <button id="confirm-create-world" class="send-btn" type="submit">创建世界</button>
                 <button id="cancel-create-world" class="ghost-btn mini-ghost" type="button">取消</button>
               </div>
-              <p class="create-world-hint">仅支持字母、数字、下划线和连字符。</p>
             </form>
             <datalist id="world-suggestions"></datalist>
             <div id="session-list" class="session-list"></div>
@@ -137,9 +133,9 @@
           <div class="archive-head collapsible-head">
             <div class="archive-title-wrap">
               <span class="section-dot"></span>
-              <p class="section-title archive-label">NPCs</p>
+              <p class="section-title archive-label">登场角色</p>
             </div>
-            <button id="toggle-npc-panel" class="collapse-btn" type="button" aria-expanded="false" aria-controls="npc-panel-body" title="展开或收起 NPCs">▸</button>
+            <button id="toggle-npc-panel" class="collapse-btn" type="button" aria-expanded="false" aria-controls="npc-panel-body" title="展开或收起登场角色">▸</button>
           </div>
           <div id="npc-panel-body" class="collapsible-body" hidden>
             <div id="npc-list" class="npc-list compact-list rail-npc-list"></div>
@@ -150,9 +146,9 @@
           <div class="archive-head collapsible-head">
             <div class="archive-title-wrap">
               <span class="section-dot"></span>
-              <p class="section-title archive-label">Recent Events</p>
+              <p class="section-title archive-label">最近事件</p>
             </div>
-            <button id="toggle-recent-events" class="collapse-btn" type="button" aria-expanded="false" aria-controls="recent-events-wrap" title="展开或收起 Recent Events">▸</button>
+            <button id="toggle-recent-events" class="collapse-btn" type="button" aria-expanded="false" aria-controls="recent-events-wrap" title="展开或收起最近事件">▸</button>
           </div>
           <div id="recent-events-wrap" class="collapsible-body" hidden>
             <ul id="recent-events" class="recent-list"></ul>
@@ -175,7 +171,7 @@
       <header class="settings-head">
         <div>
           <p class="eyebrow">设置</p>
-          <h2 id="settings-title">LLM 接入管理</h2>
+          <h2 id="settings-title">模型接入管理</h2>
           <p class="settings-copy">为跑团会话添加、编辑并切换当前使用的模型配置。</p>
         </div>
         <button id="close-settings-btn" class="close-btn" type="button" aria-label="关闭设置">×</button>
@@ -196,19 +192,19 @@
             <input id="llm-profile-id" type="hidden">
             <label class="settings-field">
               <span>配置名称</span>
-              <input id="llm-profile-label" type="text" placeholder="例如：SiliconFlow DeepSeek">
+              <input id="llm-profile-label" type="text" placeholder="例如：主力模型">
             </label>
             <label class="settings-field">
               <span>模型名</span>
-              <input id="llm-profile-model" type="text" placeholder="例如：deepseek-ai/DeepSeek-V3.2">
+              <input id="llm-profile-model" type="text" placeholder="例如：服务商/模型名称">
             </label>
             <label class="settings-field">
               <span>接入地址</span>
-              <input id="llm-profile-base-url" type="text" placeholder="例如：https://api.siliconflow.cn/v1">
+              <input id="llm-profile-base-url" type="text" placeholder="例如：https://你的模型服务/v1">
             </label>
             <label class="settings-field">
-              <span>API Key</span>
-              <input id="llm-profile-api-key" type="password" placeholder="sk-...">
+              <span>接口密钥</span>
+              <input id="llm-profile-api-key" type="password" placeholder="例如：在这里粘贴接口密钥">
             </label>
             <div class="settings-grid">
               <label class="settings-field">
@@ -216,13 +212,13 @@
                 <input id="llm-profile-timeout" type="number" min="1" step="1" value="60">
               </label>
               <label class="settings-field">
-                <span>Temperature</span>
+                <span>采样温度</span>
                 <input id="llm-profile-temperature" type="number" min="0" max="2" step="0.1" value="0.7">
               </label>
             </div>
             <label class="settings-toggle">
               <input id="llm-profile-json" type="checkbox" checked>
-              <span>强制 JSON 输出</span>
+              <span>强制结构化输出</span>
             </label>
             <div class="settings-actions">
               <button id="save-llm-profile-btn" class="send-btn" type="submit">保存配置</button>
@@ -239,8 +235,5 @@
   <script src="/app.js" type="module"></script>
 </body>
 </html>
-
-
-
 
 

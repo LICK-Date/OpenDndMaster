@@ -1,1 +1,0 @@
-Turn action: 初始化世界 | action_type: narrative | outcome: not_required

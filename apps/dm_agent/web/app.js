@@ -56,6 +56,35 @@ const activateLlmProfileButton = document.querySelector('#activate-llm-profile-b
 const deleteLlmProfileButton = document.querySelector('#delete-llm-profile-btn');
 const settingsStatus = document.querySelector('#settings-status');
 
+const SPEAKER_LABELS = {
+  System: '系统',
+  Traveler: '旅人',
+  'Dungeon Master': '地下城主',
+};
+
+const SOURCE_LABELS = {
+  template: '模板',
+  llm: '模型',
+  service_unavailable: '模型不可用',
+};
+
+const ROLL_RESULT_LABELS = {
+  success: '成功',
+  partial: '部分成功',
+  failure: '失败',
+  not_required: '无需判定',
+  unknown: '未知',
+};
+
+const GENERIC_VALUE_LABELS = {
+  Unknown: '未知',
+  unknown: '未知',
+  none: '无',
+  None: '无',
+  true: '是',
+  false: '否',
+};
+
 let latestState = null;
 let worlds = [];
 let activeWorldId = '';
@@ -83,6 +112,49 @@ function slugifyProfileId(value) {
   return normalized || `profile_${Date.now()}`;
 }
 
+function localizeDisplayName(name) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) {
+    return '未命名';
+  }
+  return SPEAKER_LABELS[trimmed] || trimmed;
+}
+
+function localizeGenericValue(value, fallback) {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) {
+    return fallback;
+  }
+  return GENERIC_VALUE_LABELS[trimmed] || trimmed;
+}
+
+function localizeLocation(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) {
+    return '未知地点';
+  }
+  if (trimmed === 'Nowhere') {
+    return '未知地点';
+  }
+  return localizeGenericValue(trimmed, '未知地点');
+}
+
+function localizeNarrativeSource(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) {
+    return '模板';
+  }
+  return SOURCE_LABELS[trimmed] || trimmed;
+}
+
+function localizeRollResult(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) {
+    return '未知';
+  }
+  return ROLL_RESULT_LABELS[trimmed] || trimmed;
+}
+
 function setCollapsibleState(panel, body, button, expanded) {
   if (!panel || !body || !button) {
     return;
@@ -96,6 +168,9 @@ function setCollapsibleState(panel, body, button, expanded) {
 
 function setWorldArchiveExpanded(expanded) {
   worldArchiveExpanded = expanded;
+  if (!expanded) {
+    closeCreateWorldForm();
+  }
   setCollapsibleState(worldArchivePanel, worldArchiveBody, toggleWorldArchiveButton, expanded);
 }
 
@@ -121,12 +196,11 @@ function appendMessage(kind, speaker, content) {
   }
   const node = template.content.firstElementChild.cloneNode(true);
   node.classList.add(kind);
-  node.querySelector('.speaker').textContent = speaker;
+  node.querySelector('.speaker').textContent = localizeDisplayName(speaker);
   node.querySelector('.content').textContent = content;
   chatLog.appendChild(node);
   requestAnimationFrame(() => {
     chatLog.scrollTop = chatLog.scrollHeight;
-
   });
 }
 
@@ -156,7 +230,7 @@ function renderTranscript(transcript = []) {
     }
     const node = template.content.firstElementChild.cloneNode(true);
     node.classList.add(kind);
-    node.querySelector('.speaker').textContent = speaker;
+    node.querySelector('.speaker').textContent = localizeDisplayName(speaker);
     node.querySelector('.content').textContent = content;
     chatLog.appendChild(node);
   }
@@ -177,6 +251,12 @@ function setBusy(isBusy, message) {
   }
 }
 
+function formatAttributeValue(value) {
+  if (value === null || value === undefined || value === '' || value === '??') {
+    return '??';
+  }
+  return String(value);
+}
 
 function renderAttributes(attributes = {}) {
   if (!attributeGrid) {
@@ -184,17 +264,17 @@ function renderAttributes(attributes = {}) {
   }
   attributeGrid.innerHTML = '';
   const entries = [
-    ['Strength', attributes.strength],
-    ['Dexterity', attributes.dexterity],
-    ['Intelligence', attributes.intelligence],
-    ['Charisma', attributes.charisma],
-    ['Constitution', attributes.constitution],
-    ['Talent', attributes.talent],
+    ['力量', attributes.strength],
+    ['敏捷', attributes.dexterity],
+    ['智力', attributes.intelligence],
+    ['魅力', attributes.charisma],
+    ['体质', attributes.constitution],
+    ['天赋', attributes.talent],
   ];
   for (const [label, value] of entries) {
     const card = document.createElement('div');
     card.className = 'stat';
-    card.innerHTML = `<span class="label">${escapeHtml(label)}</span><strong>${value ?? '-'}</strong>`;
+    card.innerHTML = `<span class="label">${escapeHtml(label)}</span><strong>${formatAttributeValue(value)}</strong>`;
     attributeGrid.appendChild(card);
   }
 }
@@ -204,7 +284,7 @@ function renderFactions(factions = []) {
     return;
   }
   factionRow.innerHTML = '';
-  const items = factions.length ? factions : ['No factions yet'];
+  const items = factions.length ? factions : ['暂无势力'];
   for (const faction of items) {
     const chip = document.createElement('span');
     chip.className = 'chip';
@@ -219,16 +299,16 @@ function renderNpcs(npcs = []) {
   }
   npcList.innerHTML = '';
   if (npcs.length === 0) {
-    npcList.innerHTML = '<div class="npc-entry"><p>No known NPCs in this world yet.</p></div>';
+    npcList.innerHTML = '<div class="npc-entry"><p>这个世界里还没有已知角色。</p></div>';
     return;
   }
   for (const npc of npcs.slice(0, 6)) {
     const card = document.createElement('article');
     card.className = 'npc-entry';
     card.innerHTML = `
-      <h4>${escapeHtml(npc.name)}</h4>
-      <p>${escapeHtml(npc.profession || 'Unknown role')} · 好感 ${npc.favorability ?? 0}</p>
-      <p>${escapeHtml(npc.relationship || 'No clear relationship yet.')}</p>
+      <h4>${escapeHtml(localizeDisplayName(npc.name))}</h4>
+      <p>${escapeHtml(npc.profession || '身份未明')} · 好感 ${npc.favorability ?? 0}</p>
+      <p>${escapeHtml(npc.relationship || '与你的关系尚未明确。')}</p>
     `;
     npcList.appendChild(card);
   }
@@ -240,7 +320,7 @@ function renderRecent(events = []) {
   }
   recentEvents.innerHTML = '';
   if (events.length === 0) {
-    recentEvents.innerHTML = '<li>No turns have been recorded yet.</li>';
+    recentEvents.innerHTML = '<li>还没有记录任何回合。</li>';
     return;
   }
   for (const item of events.slice().reverse()) {
@@ -256,7 +336,7 @@ function renderSessionList() {
   }
   sessionList.innerHTML = '';
   if (!worlds.length) {
-    sessionList.innerHTML = '<div class="session-card muted">No saved worlds yet.</div>';
+    sessionList.innerHTML = '<div class="session-card muted">还没有已保存的世界。</div>';
     return;
   }
 
@@ -268,9 +348,9 @@ function renderSessionList() {
     button.type = 'button';
     button.className = `session-card${worldId === activeWorldId ? ' active' : ''}`;
     button.innerHTML = `
-      <span class="session-badge">World</span>
+      <span class="session-badge">世界</span>
       <strong>${escapeHtml(worldId)}</strong>
-      <span class="session-meta">继续这条冒险分支</span>
+      <span class="session-meta">继续这段冒险</span>
     `;
     button.addEventListener('click', async () => {
       if (worldInput) {
@@ -280,7 +360,7 @@ function renderSessionList() {
         await loadWorld(worldId, 'load', { resetMessages: true });
       } catch (error) {
         if (statusLine) {
-          statusLine.textContent = `Failed to load world: ${error.message}`;
+          statusLine.textContent = `加载世界失败：${error.message}`;
         }
       }
     });
@@ -306,7 +386,7 @@ function renderSessionList() {
         await deleteWorld(worldId);
       } catch (error) {
         if (statusLine) {
-          statusLine.textContent = `Failed to delete world: ${error.message}`;
+          statusLine.textContent = `删除世界失败：${error.message}`;
         }
       }
     });
@@ -315,6 +395,7 @@ function renderSessionList() {
     sessionList.appendChild(card);
   }
 }
+
 function applySummary(summary, options = {}) {
   const { resetMessages = false } = options;
   activeWorldId = summary.world_id;
@@ -322,25 +403,25 @@ function applySummary(summary, options = {}) {
     worldInput.value = summary.world_id;
   }
   if (navWorldName) {
-    navWorldName.textContent = summary.world.name;
+    navWorldName.textContent = summary.world.name || '未命名世界';
   }
   if (worldTitle) {
-    worldTitle.textContent = summary.world.name;
+    worldTitle.textContent = summary.world.name || '未命名世界';
   }
   if (worldCity) {
-    worldCity.textContent = summary.world.city;
+    worldCity.textContent = localizeLocation(summary.world.city || '未知地点');
   }
   if (worldTone) {
-    worldTone.textContent = summary.world.tone;
+    worldTone.textContent = summary.world.tone || '尚未设定世界基调。';
   }
   if (playerName) {
-    playerName.textContent = summary.player.name;
+    playerName.textContent = localizeDisplayName(summary.player.name || '未命名');
   }
   if (playerLocation) {
-    playerLocation.textContent = summary.player.location;
+    playerLocation.textContent = localizeLocation(summary.player.location);
   }
   if (playerBackground) {
-    playerBackground.textContent = summary.player.background || 'No background yet.';
+    playerBackground.textContent = summary.player.background || '暂无背景信息。';
   }
   renderAttributes(summary.player.attributes);
   renderFactions(summary.world.factions);
@@ -354,15 +435,14 @@ function applySummary(summary, options = {}) {
       clearMessages();
     }
   }
-
 }
 
 function updateMeta(result) {
   if (sourcePill) {
-    sourcePill.textContent = result.narrative_source || 'template';
+    sourcePill.textContent = localizeNarrativeSource(result.narrative_source || 'template');
   }
   if (rollPill) {
-    rollPill.textContent = result.roll?.result || 'unknown';
+    rollPill.textContent = localizeRollResult(result.roll?.result || 'unknown');
   }
 }
 
@@ -401,7 +481,7 @@ async function refreshWorlds() {
 
 async function loadWorld(worldId, mode = 'load', options = {}) {
   const normalizedWorldId = (worldId || '').trim() || 'campaign_01';
-  setBusy(true, mode === 'create' ? 'Creating world...' : 'Loading world...');
+  setBusy(true, mode === 'create' ? '正在创建世界...' : '正在载入世界...');
   try {
     const path = mode === 'create' ? '/api/worlds/create' : `/api/world?world_id=${encodeURIComponent(normalizedWorldId)}`;
     const payload = mode === 'create'
@@ -410,11 +490,11 @@ async function loadWorld(worldId, mode = 'load', options = {}) {
     await refreshWorlds();
     applySummary(payload, options);
     if (statusLine) {
-      statusLine.textContent = `World '${normalizedWorldId}' ready.`;
+      statusLine.textContent = `世界“${normalizedWorldId}”已就绪。`;
     }
     return payload;
   } finally {
-    setBusy(false, statusLine?.textContent || 'Ready.');
+    setBusy(false, statusLine?.textContent || '就绪。回车发送，换行请使用组合键。');
   }
 }
 
@@ -428,7 +508,7 @@ async function deleteWorld(worldId) {
     return;
   }
 
-  setBusy(true, `Deleting world '${normalizedWorldId}'...`);
+  setBusy(true, `正在删除世界“${normalizedWorldId}”...`);
   try {
     const payload = await api('/api/worlds/delete', {
       method: 'POST',
@@ -441,16 +521,17 @@ async function deleteWorld(worldId) {
       if (fallbackWorldId) {
         await loadWorld(fallbackWorldId, 'load', { resetMessages: true });
         if (statusLine) {
-          statusLine.textContent = `World '${normalizedWorldId}' deleted. Switched to '${fallbackWorldId}'.`;
+          statusLine.textContent = `世界“${normalizedWorldId}”已删除，已切换到“${fallbackWorldId}”。`;
         }
       }
     } else if (statusLine) {
-      statusLine.textContent = `World '${normalizedWorldId}' deleted.`;
+      statusLine.textContent = `世界“${normalizedWorldId}”已删除。`;
     }
   } finally {
-    setBusy(false, statusLine?.textContent || 'Ready.');
+    setBusy(false, statusLine?.textContent || '就绪。回车发送，换行请使用组合键。');
   }
 }
+
 function setSettingsStatus(message) {
   if (settingsStatus) {
     settingsStatus.textContent = message;
@@ -493,7 +574,7 @@ function renderLlmProfileList() {
     button.className = `llm-profile-card${activeClass}${currentClass}`;
     button.innerHTML = `
       <strong>${escapeHtml(profile.label)}</strong>
-      <span class="session-badge">${profile.id === llmSettings.active_profile_id ? 'Current' : 'Profile'}</span>
+      <span class="session-badge">${profile.id === llmSettings.active_profile_id ? '当前' : '配置'}</span>
       <span class="llm-profile-meta">${escapeHtml(profile.model)}</span>
       <span class="llm-profile-meta">${escapeHtml(profile.base_url)}</span>
     `;
@@ -581,9 +662,9 @@ function openCreateWorldForm() {
   }
   setAccordionPanel('archive');
   createWorldForm.hidden = false;
-  createWorldInput.value = createWorldInput.value.trim() || `world_${Date.now()}`;
+  createWorldInput.value = createWorldInput.value.trim() || `世界_${Date.now()}`;
   if (statusLine) {
-    statusLine.textContent = '输入一个新的 world id，然后点击创建。';
+    statusLine.textContent = '输入一个新的世界编号，然后点击创建。';
   }
   requestAnimationFrame(() => {
     createWorldInput.focus();
@@ -606,7 +687,7 @@ if (turnForm) {
     const worldId = worldInput?.value.trim() || 'campaign_01';
     if (!input) {
       if (statusLine) {
-        statusLine.textContent = 'Write an action first.';
+        statusLine.textContent = '请先写下你的行动。';
       }
       return;
     }
@@ -621,7 +702,7 @@ if (turnForm) {
       turnInput.value = '';
       turnInput.focus();
     }
-    setBusy(true, 'Resolving turn...');
+    setBusy(true, '正在结算本回合...');
 
     try {
       const payload = await api('/api/turn', {
@@ -637,21 +718,22 @@ if (turnForm) {
         applySummary(payload.summary);
       }
       if (statusLine) {
-        statusLine.textContent = payload.result.narrative_error
-          ? `Fallback used: ${payload.result.narrative_error}`
-          : 'Turn resolved.';
+        statusLine.textContent = payload.result.narrative_source === 'service_unavailable'
+          ? '当前模型服务不可用'
+          : payload.result.narrative_error
+            ? `已使用回退叙事：${payload.result.narrative_error}`
+            : '本回合已完成。';
       }
     } catch (error) {
-      appendMessage('system', 'System', `The turn failed: ${error.message}`);
+      appendMessage('system', 'System', `本回合处理失败：${error.message}`);
       if (statusLine) {
-        statusLine.textContent = 'Turn failed.';
+        statusLine.textContent = '本回合处理失败。';
       }
     } finally {
-      setBusy(false, statusLine?.textContent || 'Ready.');
+      setBusy(false, statusLine?.textContent || '就绪。回车发送，换行请使用组合键。');
     }
   });
 }
-
 if (turnInput) {
   turnInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -660,8 +742,6 @@ if (turnInput) {
     }
   });
 }
-
-
 
 if (toggleWorldArchiveButton) {
   toggleWorldArchiveButton.addEventListener('click', () => {
@@ -683,7 +763,7 @@ if (createWorldForm) {
     const suggested = createWorldInput?.value.trim() || '';
     if (!suggested) {
       if (statusLine) {
-        statusLine.textContent = '请先输入新的 world id。';
+        statusLine.textContent = '请先输入新的世界编号。';
       }
       createWorldInput?.focus();
       return;
@@ -694,7 +774,7 @@ if (createWorldForm) {
       closeCreateWorldForm();
     } catch (error) {
       if (statusLine) {
-        statusLine.textContent = `Failed to create world: ${error.message}`;
+        statusLine.textContent = `创建世界失败：${error.message}`;
       }
     }
   });
@@ -834,15 +914,12 @@ window.addEventListener('load', async () => {
     setAccordionPanel('archive');
     await refreshWorlds();
     await loadWorld(worldInput?.value.trim() || 'campaign_01', 'load', { resetMessages: true });
-
   } catch (error) {
     if (statusLine) {
-      statusLine.textContent = `Failed to load world: ${error.message}`;
+      statusLine.textContent = `加载世界失败：${error.message}`;
     }
   }
 });
-
-
 
 
 

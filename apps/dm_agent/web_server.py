@@ -14,7 +14,15 @@ from urllib.parse import parse_qs, urlparse
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LANGGRAPH_SRC = REPO_ROOT / "libs" / "langgraph"
 WEB_ROOT = Path(__file__).resolve().parent / "web"
-WORLD_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+INVALID_WORLD_ID_CHARS_RE = re.compile(r'[<>:"/\\|?*\x00-\x1F]')
+RESERVED_WORLD_IDS = {
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
 
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -35,9 +43,15 @@ from apps.dm_agent.settings_store import (
 def validate_world_id(world_id: str) -> str:
     candidate = (world_id or "").strip()
     if not candidate:
-        raise ValueError("world_id is required")
-    if not WORLD_ID_RE.fullmatch(candidate):
-        raise ValueError("world_id may only contain letters, numbers, underscores, and hyphens")
+        raise ValueError("世界编号不能为空")
+    if len(candidate) > 64:
+        raise ValueError("世界编号长度不能超过 64 个字符")
+    if candidate != candidate.rstrip(" ."):
+        raise ValueError("世界编号不能以空格或句点结尾")
+    if INVALID_WORLD_ID_CHARS_RE.search(candidate):
+        raise ValueError("世界编号不能包含 < > : \" / \\ | ? * 或控制字符")
+    if candidate.upper() in RESERVED_WORLD_IDS:
+        raise ValueError("世界编号不能使用 Windows 保留名称")
     return candidate
 
 
@@ -63,13 +77,13 @@ def delete_world(world_id: str) -> dict:
     world_id = validate_world_id(world_id)
     worlds = list_worlds()
     if world_id not in worlds:
-        raise ValueError(f"world '{world_id}' does not exist")
+        raise ValueError(f"世界“{world_id}”不存在")
     if len(worlds) <= 1:
-        raise ValueError("at least one world must remain")
+        raise ValueError("至少要保留一个世界")
 
     paths = get_world_paths(str(REPO_ROOT), world_id)
     if not paths["world_dir"].exists():
-        raise ValueError(f"world '{world_id}' does not exist")
+        raise ValueError(f"世界“{world_id}”不存在")
 
     shutil.rmtree(paths["world_dir"])
     remaining = list_worlds()
@@ -90,17 +104,17 @@ def build_world_summary(world_id: str) -> dict:
         "world_id": world_id,
         "world": {
             "name": world.get("world_name", world_id),
-            "city": world.get("current_city", "Unknown"),
-            "tone": world.get("tone", "Unknown"),
+            "city": world.get("current_city", "未知地点"),
+            "tone": world.get("tone", "未知基调"),
             "factions": world.get("factions", []),
             "recent_events": world.get("recent_events", [])[-8:],
             "path": str(paths["world_dir"]),
         },
         "player": {
-            "name": player.get("name", "Traveler"),
+            "name": player.get("name", "未命名"),
             "background": player.get("background", ""),
-            "location": player.get("status", {}).get("location", "Unknown"),
-            "injury": player.get("status", {}).get("injury", "none"),
+            "location": player.get("status", {}).get("location", "未知地点"),
+            "injury": player.get("status", {}).get("injury", "无"),
             "wanted": player.get("status", {}).get("wanted", False),
             "attributes": player.get("attributes", {}),
             "reputation": player.get("hidden_reputation", {}),
@@ -112,8 +126,8 @@ def build_world_summary(world_id: str) -> dict:
                 "id": npc_id,
                 "name": payload.get("name", npc_id),
                 "profession": payload.get("profession", ""),
-                "status": payload.get("current_status", "unknown"),
-                "city": payload.get("current_city", "Unknown"),
+                "status": payload.get("current_status", "未知"),
+                "city": payload.get("current_city", "未知地点"),
                 "favorability": payload.get("favorability", 0),
                 "relationship": payload.get("relationship_to_player", ""),
                 "appearance": payload.get("appearance", ""),
@@ -143,7 +157,7 @@ class DMRequestHandler(BaseHTTPRequestHandler):
         except ValueError as exc:
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
         except Exception as exc:  # pragma: no cover - defensive path for manual UI use
-            self._send_json({"error": f"Server error: {exc}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+            self._send_json({"error": f"服务器错误：{exc}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
@@ -153,7 +167,7 @@ class DMRequestHandler(BaseHTTPRequestHandler):
                 world_id = validate_world_id(body.get("world_id") or "demo")
                 player_input = (body.get("input") or "").strip()
                 if not player_input:
-                    self._send_json({"error": "input is required"}, status=HTTPStatus.BAD_REQUEST)
+                    self._send_json({"error": "行动内容不能为空"}, status=HTTPStatus.BAD_REQUEST)
                     return
                 result = run_turn(self.graph, world_id, player_input)
                 memory = load_world_memory(str(REPO_ROOT), world_id)
@@ -163,7 +177,7 @@ class DMRequestHandler(BaseHTTPRequestHandler):
                     [
                         {
                             "kind": "player",
-                            "speaker": memory["player_profile"].get("name", "Traveler"),
+                            "speaker": memory["player_profile"].get("name", "未命名"),
                             "content": player_input,
                         },
                         {
@@ -197,11 +211,11 @@ class DMRequestHandler(BaseHTTPRequestHandler):
                 payload = activate_llm_profile(str(REPO_ROOT), body.get("profile_id") or "")
                 self._send_json(payload)
                 return
-            self._send_json({"error": "Not found"}, status=HTTPStatus.NOT_FOUND)
+            self._send_json({"error": "未找到接口"}, status=HTTPStatus.NOT_FOUND)
         except ValueError as exc:
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
         except Exception as exc:  # pragma: no cover - defensive path for manual UI use
-            self._send_json({"error": f"Server error: {exc}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+            self._send_json({"error": f"服务器错误：{exc}"}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def _serve_static(self, path: str) -> None:
         relative = "/index.html" if path in {"/", ""} else path
@@ -274,7 +288,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
-
 

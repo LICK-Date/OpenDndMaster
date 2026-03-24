@@ -1,30 +1,49 @@
 ﻿from __future__ import annotations
 
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 from .state import MemorySnapshot
 
 
+PLAYER_ATTRIBUTE_KEYS = (
+    "strength",
+    "dexterity",
+    "intelligence",
+    "charisma",
+    "constitution",
+    "talent",
+)
+
+ATTRIBUTE_DISPLAY_NAMES = {
+    "strength": "力量",
+    "dexterity": "敏捷",
+    "intelligence": "智力",
+    "charisma": "魅力",
+    "constitution": "体质",
+    "talent": "天赋",
+}
+
 DEFAULT_WORLD = {
-    "world_name": "Riverside Demo",
-    "tone": "grounded fantasy",
-    "current_city": "Riverside",
-    "factions": ["Town Watch", "River Traders"],
+    "world_name": "未命名世界",
+    "tone": "等待玩家定义的冒险基调",
+    "current_city": "尚未设定",
+    "factions": [],
     "recent_events": [],
 }
 
 DEFAULT_PLAYER_PROFILE = {
-    "name": "Traveler",
-    "background": "A wandering adventurer new to town.",
+    "name": "未命名",
+    "background": "角色尚未创建，请先为角色命名并填写六维属性。",
     "attributes": {
-        "strength": 16,
-        "dexterity": 15,
-        "intelligence": 14,
-        "charisma": 15,
-        "constitution": 14,
-        "talent": 13,
+        "strength": None,
+        "dexterity": None,
+        "intelligence": None,
+        "charisma": None,
+        "constitution": None,
+        "talent": None,
     },
     "hidden_reputation": {
         "notoriety": 0,
@@ -35,50 +54,33 @@ DEFAULT_PLAYER_PROFILE = {
         "applied_goodwill_tiers": 0,
         "applied_notoriety_tiers": 0,
     },
-    "equipment": ["travel cloak", "coin pouch"],
+    "equipment": [],
     "history": [],
     "relationships": [],
     "status": {
-        "location": "Riverside Inn",
+        "location": "世界入口",
         "injury": "none",
         "wanted": False,
     },
 }
 
-DEFAULT_NPC_INDEX = [
-    {
-        "npc_id": "innkeeper_mara",
-        "name": "Mara",
-        "file_path": "world_Info/npcs/innkeeper_mara.json",
-        "current_status": "alive",
-        "city": "Riverside",
-        "relationship_summary": "Polite but cautious toward newcomers.",
-    }
-]
+DEFAULT_NPC_INDEX: list[dict[str, Any]] = []
 
-DEFAULT_NPC = {
-    "id": "innkeeper_mara",
-    "name": "Mara",
-    "age": 38,
-    "gender": "female",
-    "profession": "innkeeper",
-    "appearance": "Keeps a clean apron and watches the room carefully.",
-    "personality": "Measured, practical, and hard to fool.",
-    "background": "Runs the Riverside Inn and hears most town rumors.",
-    "alignment": "neutral",
-    "goal": "Keep the inn safe and profitable.",
-    "secret": "Passes useful information to the Town Watch.",
-    "relationship_to_player": "No strong opinion yet.",
-    "current_status": "alive",
-    "current_city": "Riverside",
-    "favorability": 0,
-    "social_resistance": 12,
-    "attributes": {
-        "constitution": 11,
-        "willpower": 12,
-        "strength": 10,
-    },
-}
+INITIAL_WORLD_PROMPT = (
+    "这是一片尚未成形的世界，故事会从你的选择开始。"
+    "在继续之前，你希望在什么样的世界里冒险？"
+    "可以告诉我时代、氛围、地点，或者你最想体验的元素。"
+)
+
+
+def _build_default_world(world_id: str) -> dict[str, Any]:
+    world = dict(DEFAULT_WORLD)
+    world["world_name"] = world_id
+    return world
+
+
+def _build_default_player_profile() -> dict[str, Any]:
+    return deepcopy(DEFAULT_PLAYER_PROFILE)
 
 
 def _read_json(path: Path, default: Any) -> Any:
@@ -94,32 +96,53 @@ def _write_json(path: Path, payload: Any) -> None:
     )
 
 
+def _build_opening_transcript() -> list[dict[str, str]]:
+    return [
+        {
+            "kind": "gm",
+            "speaker": "Dungeon Master",
+            "content": INITIAL_WORLD_PROMPT,
+        }
+    ]
+
+
+def _format_player_name(name: Any) -> str:
+    trimmed = str(name or "").strip()
+    return trimmed or "未命名"
+
+
+def _format_attribute_value(value: Any) -> str:
+    if value in {None, "", "??"}:
+        return "??"
+    return str(value)
+
+
 def _render_player_markdown(profile: dict[str, Any]) -> str:
     attributes = profile["attributes"]
     reputation = profile["hidden_reputation"]
     status = profile["status"]
     lines = [
-        f"# {profile['name']}",
+        f"# {_format_player_name(profile.get('name'))}",
         "",
-        f"Background: {profile['background']}",
+        f"背景：{profile.get('background') or '暂无背景信息。'}",
         "",
-        "## Attributes",
-        f"- Strength: {attributes['strength']}",
-        f"- Dexterity: {attributes['dexterity']}",
-        f"- Intelligence: {attributes['intelligence']}",
-        f"- Charisma: {attributes['charisma']}",
-        f"- Constitution: {attributes['constitution']}",
-        f"- Talent: {attributes['talent']}",
+        "## 属性",
+        f"- 力量：{_format_attribute_value(attributes.get('strength'))}",
+        f"- 敏捷：{_format_attribute_value(attributes.get('dexterity'))}",
+        f"- 智力：{_format_attribute_value(attributes.get('intelligence'))}",
+        f"- 魅力：{_format_attribute_value(attributes.get('charisma'))}",
+        f"- 体质：{_format_attribute_value(attributes.get('constitution'))}",
+        f"- 天赋：{_format_attribute_value(attributes.get('talent'))}",
         "",
-        "## Hidden Reputation",
-        f"- Notoriety: {reputation['notoriety']}",
-        f"- Goodwill: {reputation['goodwill']}",
-        f"- Heroic: {reputation['heroic']}",
+        "## 隐藏声望",
+        f"- 恶名：{reputation['notoriety']}",
+        f"- 善意：{reputation['goodwill']}",
+        f"- 英勇：{reputation['heroic']}",
         "",
-        "## Status",
-        f"- Location: {status['location']}",
-        f"- Injury: {status['injury']}",
-        f"- Wanted: {status['wanted']}",
+        "## 当前状态",
+        f"- 位置：{status['location']}",
+        f"- 伤势：{status['injury']}",
+        f"- 通缉：{status['wanted']}",
     ]
     return "\n".join(lines) + "\n"
 
@@ -145,30 +168,32 @@ def get_world_paths(workspace_root: str, world_id: str) -> dict[str, Path]:
 def ensure_world_exists(workspace_root: str, world_id: str) -> None:
     paths = get_world_paths(workspace_root, world_id)
     paths["npc_dir"].mkdir(parents=True, exist_ok=True)
+    default_player_profile = _build_default_player_profile()
 
     if not paths["world_json"].exists():
-        _write_json(paths["world_json"], DEFAULT_WORLD)
+        _write_json(paths["world_json"], _build_default_world(world_id))
     if not paths["player_profile"].exists():
-        _write_json(paths["player_profile"], DEFAULT_PLAYER_PROFILE)
+        _write_json(paths["player_profile"], default_player_profile)
     if not paths["npc_list"].exists():
         _write_json(paths["npc_list"], DEFAULT_NPC_INDEX)
     if not paths["player_md"].exists():
         paths["player_md"].write_text(
-            _render_player_markdown(DEFAULT_PLAYER_PROFILE),
+            _render_player_markdown(default_player_profile),
             encoding="utf-8",
         )
-
-    default_npc_path = paths["npc_dir"] / "innkeeper_mara.json"
-    if not default_npc_path.exists():
-        _write_json(default_npc_path, DEFAULT_NPC)
 
     if not paths["session_log"].exists():
         paths["session_log"].write_text("", encoding="utf-8")
     if not paths["session_transcript"].exists():
-        paths["session_transcript"].write_text("[]", encoding="utf-8")
+        paths["session_transcript"].write_text(
+            json.dumps(_build_opening_transcript(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
 
 def _normalize_player_profile(profile: dict[str, Any]) -> dict[str, Any]:
+    profile.setdefault("name", "未命名")
+    profile.setdefault("background", "角色尚未创建，请先为角色命名并填写六维属性。")
     profile.setdefault("attributes", {})
     profile.setdefault("hidden_reputation", {})
     profile.setdefault("hidden_reputation_meta", {})
@@ -177,12 +202,8 @@ def _normalize_player_profile(profile: dict[str, Any]) -> dict[str, Any]:
     profile.setdefault("relationships", [])
     profile.setdefault("status", {})
 
-    profile["attributes"].setdefault("strength", 10)
-    profile["attributes"].setdefault("dexterity", 10)
-    profile["attributes"].setdefault("intelligence", 10)
-    profile["attributes"].setdefault("charisma", 10)
-    profile["attributes"].setdefault("constitution", 10)
-    profile["attributes"].setdefault("talent", 10)
+    for key in PLAYER_ATTRIBUTE_KEYS:
+        profile["attributes"].setdefault(key, None)
 
     profile["hidden_reputation"].setdefault("notoriety", 0)
     profile["hidden_reputation"].setdefault("goodwill", 0)
@@ -190,7 +211,7 @@ def _normalize_player_profile(profile: dict[str, Any]) -> dict[str, Any]:
     profile["hidden_reputation_meta"].setdefault("applied_goodwill_tiers", 0)
     profile["hidden_reputation_meta"].setdefault("applied_notoriety_tiers", 0)
 
-    profile["status"].setdefault("location", "Unknown")
+    profile["status"].setdefault("location", "世界入口")
     profile["status"].setdefault("injury", "none")
     profile["status"].setdefault("wanted", False)
     return profile
@@ -231,12 +252,12 @@ def load_world_memory(workspace_root: str, world_id: str) -> MemorySnapshot:
     ensure_world_exists(workspace_root, world_id)
     paths = get_world_paths(workspace_root, world_id)
     player_profile = _normalize_player_profile(
-        _read_json(paths["player_profile"], DEFAULT_PLAYER_PROFILE)
+        _read_json(paths["player_profile"], _build_default_player_profile())
     )
     npc_index = _read_json(paths["npc_list"], DEFAULT_NPC_INDEX)
     player_markdown = paths["player_md"].read_text(encoding="utf-8-sig")
     snapshot: MemorySnapshot = {
-        "world": _read_json(paths["world_json"], DEFAULT_WORLD),
+        "world": _read_json(paths["world_json"], _build_default_world(world_id)),
         "player_profile": player_profile,
         "player_markdown": player_markdown,
         "npc_index": npc_index,
@@ -310,7 +331,7 @@ def apply_reputation_change(
 def load_session_transcript(workspace_root: str, world_id: str) -> list[dict[str, str]]:
     ensure_world_exists(workspace_root, world_id)
     paths = get_world_paths(workspace_root, world_id)
-    payload = _read_json(paths["session_transcript"], [])
+    payload = _read_json(paths["session_transcript"], _build_opening_transcript())
     if not isinstance(payload, list):
         return []
     transcript: list[dict[str, str]] = []
@@ -350,5 +371,3 @@ def append_session_transcript(workspace_root: str, world_id: str, entries: list[
         json.dumps(transcript[-80:], ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-
-
